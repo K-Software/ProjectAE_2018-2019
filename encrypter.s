@@ -43,16 +43,16 @@ msgErrMsgNotExist: .asciiz "File of message not exist!\n"
 msgErrMsgIsEmpty: .asciiz "File of message is empty!\n"
 msgEndProgram: .asciiz "\nEnd program\n"
 lineFeed: .asciiz "\n"
-promptAlgEncrptA: .asciiz "Applied the algorithm of encryption A\n"
-promptAlgEncrptB: .asciiz "Applied the algorithm of encryption B\n"
-promptAlgEncrptC: .asciiz "Applied the algorithm of encryption C\n"
-promptAlgEncrptD: .asciiz "Applied the algorithm of encryption D\n"
-promptAlgEncrptE: .asciiz "Applied the algorithm of encryption E\n"
-promptAlgDecrptA: .asciiz "Applied the algorithm of decryption A\n"
-promptAlgDecrptB: .asciiz "Applied the algorithm of decryption B\n"
-promptAlgDecrptC: .asciiz "Applied the algorithm of decryption C\n"
-promptAlgDecrptD: .asciiz "Applied the algorithm of decryption D\n"
-promptAlgDecrptE: .asciiz "Applied the algorithm of decryption E\n"
+promptAlgEncrptA: .asciiz "\nApplied the algorithm of encryption A\n"
+promptAlgEncrptB: .asciiz "\nApplied the algorithm of encryption B\n"
+promptAlgEncrptC: .asciiz "\nApplied the algorithm of encryption C\n"
+promptAlgEncrptD: .asciiz "\nApplied the algorithm of encryption D\n"
+promptAlgEncrptE: .asciiz "\nApplied the algorithm of encryption E\n"
+promptAlgDecrptA: .asciiz "\nApplied the algorithm of decryption A\n"
+promptAlgDecrptB: .asciiz "\nApplied the algorithm of decryption B\n"
+promptAlgDecrptC: .asciiz "\nApplied the algorithm of decryption C\n"
+promptAlgDecrptD: .asciiz "\nApplied the algorithm of decryption D\n"
+promptAlgDecrptE: .asciiz "\nApplied the algorithm of decryption E\n"
 
 .align 2
 jumpEncrtpTable: .word	encrptA encrptB encrptC encrptD encrptE
@@ -103,10 +103,10 @@ length:
   li $t1,0
 nextCh:
   lb $t0,($t2)
-	beqz $t0,strEnd
-	add $t1,$t1,1
-	add $t2,$t2,1
-	j nextCh
+  beqz $t0,strEnd
+  add $t1,$t1,1
+  add $t2,$t2,1
+  j nextCh
 
 strEnd:
   move $v0,$t1
@@ -115,12 +115,12 @@ strEnd:
 removeLF:
   # Procedure to remove line feed char \n
 
-	add $a0,$a0,79
+  add $a0,$a0,79
 rLFloop:
-	lb $v0,0($a0)
-	bnez $v0,rLFdone
-	sub $a0,$a0,1
-	j rLFloop
+  lb $v0,($a0)
+  bnez $v0,rLFdone
+  sub $a0,$a0,1
+  j rLFloop
 rLFdone: sb $0,0($a0)
   jr $ra
 
@@ -128,30 +128,30 @@ openFileToRead:
   # Procedure to open file in read mode
   # $a0 = address of null-terminated string containing filename
 
-	li $v0, 13 # system call for open file
-	li $a1, 0 # flag for reading
-	li $a2, 0 # mode is ignored
-	syscall # open a file
+  li $v0, 13 # system call for open file
+  li $a1, 0 # flag for reading
+  li $a2, 0 # mode is ignored
+  syscall # open a file
   jr $ra
 
 readFile:
   # Procedure to read a file
   # $a0: file descriptor
-	# $a1: address of input buffer
-	# $a2: maximum number of characters to read
+  # $a1: address of input buffer
+  # $a2: maximum number of characters to read
 
-	li $v0,14
-	syscall
+  li $v0,14
+  syscall
   jr $ra
 
 openFileToWrite:
   # Procedure to open file in write mode
   # $a0: output file name
 
-	li $v0, 13 # system call for open file
-	li $a1, 1 # flag for writing
-	li $a2, 0 # mode is ignored
-	syscall # open a file
+  li $v0, 13 # system call for open file
+  li $a1, 1 # flag for writing
+  li $a2, 0 # mode is ignored
+  syscall # open a file
 	jr $ra
 
 writeFile:
@@ -172,229 +172,284 @@ closeFile:
   syscall
   jr $ra
 
+module:
+  # Procedure to calcolate a mod 256
+  # $a0: number
+  # $a1: module
+  # $v0: result of number mod modulo
+
+  div $a0,$a1
+  mfhi $v0
+  jr $ra
+
 encryptA:
+  # Procedure for algorithm A
+  # $a0: original message
+  # $a1: encrypt message
+
+  move $t0,$a0
+  move $t2,$a1
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgEncrptA
+  jal printStr
+nextChrEncryptA:
+  lb $t1,($t0)
+  beqz $t1,endBufferEncryptA
+  move $a0,$t1
+  addi $a0,4
+  addi $a1,$zero,256
+  jal module
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$v0
+  jal printChr
+  lw $v0,0($sp)
+  addi $sp,$sp,4
+  sb $v0,0($t0)
+  add $t0,$t0,1
+  j nextChrEncryptA
+
+endBufferEncryptA:
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
+
+decryptA:
   # Procedure for algorithm A
 
   addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgEncrptA
-	jal printStr
+  sw $ra,0($sp)
+  la $a0,promptAlgDecrptA
+  jal printStr
   lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
-
-decryptA:
-	# Procedure for algorithm A
-
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgDecrptA
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,4
+  jr $ra
 
 encryptB:
   # Procedure for algorithm B
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgEncrptB
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgEncrptB
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 decryptB:
-	# Procedure for algorithm B
+  # Procedure for algorithm B
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgDecrptB
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgDecrptB
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 encryptC:
   # Procedure for algorithm C
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgEncrptC
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgEncrptC
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 decryptC:
-	# Procedure for algorithm C
+  # Procedure for algorithm C
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgDecrptC
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgDecrptC
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 encryptD:
   # Procedure for algorithm D
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgEncrptD
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgEncrptD
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 decryptD:
-	# Procedure for algorithm D
+  # Procedure for algorithm D
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgDecrptD
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgDecrptD
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 encryptE:
   # Procedure for algorithm E
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgEncrptE
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgEncrptE
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 decryptE:
-	# Procedure for algorithm E
+  # Procedure for algorithm E
 
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
-	la $a0,promptAlgDecrptE
-	jal printStr
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
+  la $a0,promptAlgDecrptE
+  jal printStr
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 encryptMsg:
   # Procedure to encrypth message
   # This procedure applies the right algorithm or the algorithms on the message
   # in base on the key of the encryption.
 
-	# Prepare the jump table of algorithms
-	la $t1,jumpEncrtpTable
+  # Prepare the jump table of algorithms
+  la $t1,jumpEncrtpTable
 
-	move $t3,$a0 # $t3 key
+  move $t3,$a0 # $t3 key
   move $t5,$a1 # $t5 length of key
   sub $t5,$t5,1
   addi $sp,$sp,-4
-	sw $ra,0($sp)
+  sw $ra,0($sp)
 nextEncrpt:
-	lb $t4,($t3)
-	beqz $t5,endEncrpt
+  lb $t4,($t3)
+  beqz $t5,endEncrpt
   sub $t0,$t4,65
   mul $t0,$t0,4
   add $t0,$t0,$t1
-	lw $t0,0($t0)
-	jr $t0
+  lw $t0,0($t0)
+  jr $t0
+
 encrptA:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $t3,0($sp)
+  addi $sp,$sp,-4
+  sw $t4,0($sp)
+  addi $sp,$sp,-4
+  sw $t5,0($sp)
+  la $a0,bufferMsgData
+  la $a1,bufferEncrptData
   jal encryptA
+  lw $t5,0($sp)
+  addi $sp,$sp,4
+  lw $t4,0($sp)
+  addi $sp,$sp,4
+  lw $t3,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
   j exitCaseEncrpt
 encrptB:
   jal encryptB
-	j exitCaseEncrpt
+  j exitCaseEncrpt
 encrptC:
-	jal encryptC
-	j exitCaseEncrpt
+  jal encryptC
+  j exitCaseEncrpt
 encrptD:
-	jal encryptD
-	j exitCaseEncrpt
+  jal encryptD
+  j exitCaseEncrpt
 encrptE:
-	jal encryptE
+  jal encryptE
 exitCaseEncrpt:
   sub $t5,$t5,1
   add $t3,$t3,1
-	j nextEncrpt
+  j nextEncrpt
 
 endEncrpt:
   lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  addi $sp,$sp,4
+  jr $ra
 
 decryptMsg:
   # Procedure to decrypth the encrypted message
-	# This procedure applies the right algorithm or the algorithms on the message
-	# in base on the key of the encryption.
+  # This procedure applies the right algorithm or the algorithms on the message
+  # in base on the key of the encryption.
 
   # Prepare the jump table of algorithms
-	la $t1,jumpDecrptTable
+  la $t1,jumpDecrptTable
 
-	move $t3,$a0 # $t3 key
-	move $t5,$a1 # $t5 length of key
-	sub $t5,$t5,2
+  move $t3,$a0 # $t3 key
+  move $t5,$a1 # $t5 length of key
+  sub $t5,$t5,2
   add $t3,$t3,$t5
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
 nextDecrpt:
-	lb $t4,($t3)
-	bltz $t5,endDecrpt
-	sub $t0,$t4,65
-	mul $t0,$t0,4
-	add $t0,$t0,$t1
-	lw $t0,0($t0)
-	jr $t0
+  lb $t4,($t3)
+  bltz $t5,endDecrpt
+  sub $t0,$t4,65
+  mul $t0,$t0,4
+  add $t0,$t0,$t1
+  lw $t0,0($t0)
+  jr $t0
 decrptA:
-	jal decryptA
-	j exitCaseDecrpt
+  jal decryptA
+  j exitCaseDecrpt
 decrptB:
-	jal decryptB
-	j exitCaseDecrpt
+  jal decryptB
+  j exitCaseDecrpt
 decrptC:
-	jal decryptC
-	j exitCaseDecrpt
+  jal decryptC
+  j exitCaseDecrpt
 decrptD:
-	jal decryptD
-	j exitCaseDecrpt
+  jal decryptD
+  j exitCaseDecrpt
 decrptE:
-	jal decryptE
+  jal decryptE
 exitCaseDecrpt:
-	sub $t5,$t5,1
-	sub $t3,$t3,1
-	j nextDecrpt
+  sub $t5,$t5,1
+  sub $t3,$t3,1
+  j nextDecrpt
 
 endDecrpt:
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 printBuffer:
   # Procedure to print a buffer
   # $a0: address of input buffer
   # $a1: length of input buffer
 
-	move $t3,$a0 # $t3 buffer
-	move $t5,$a1 # $t5 length of buffer
-	addi $sp,$sp,-4
-	sw $ra,0($sp)
+  move $t3,$a0 # $t3 buffer
+  move $t5,$a1 # $t5 length of buffer
+  addi $sp,$sp,-4
+  sw $ra,0($sp)
 nextChr:
-	lb $t4,($t3)
-	beqz $t5,endBuffer
-	move $a0,$t4
-	jal printChr
-	sub $t5,$t5,1
-	add $t3,$t3,1
-	j nextChr
+  lb $t4,($t3)
+  beqz $t5,endBuffer
+  move $a0,$t4
+  jal printChr
+  sub $t5,$t5,1
+  add $t3,$t3,1
+  j nextChr
 
 endBuffer:
-	lw $ra,0($sp)
-	addi $sp,$sp,4
-	jr $ra
+  lw $ra,0($sp)
+  addi $sp,$sp,4
+  jr $ra
 
 ##################################### MAIN #####################################
 main:
@@ -403,17 +458,17 @@ main:
   # Open file to read the key
   la $a0,promptReadKey
   jal printStr
-	la $a0,fullNameOfKey
-	jal openFileToRead
+  la $a0,fullNameOfKey
+  jal openFileToRead
 
-	# Check if file of key exist
-	beq $v0,-1,keyNotExist
+  # Check if file of key exist
+  beq $v0,-1,keyNotExist
 
-	# Read the key
-	move $a0,$v0
-	la $a1,bufferKeyData
-	li $a2,5
-	jal readFile
+  # Read the key
+  move $a0,$v0
+  la $a1,bufferKeyData
+  li $a2,5
+  jal readFile
   move $s2,$v0
 
   # Check if file of key is empty
@@ -445,18 +500,18 @@ main:
   move $a1,$s2
   jal encryptMsg
 
-	# Open file to write the encrypth message
+  # Open file to write the encrypth message
   la $a0,promptWriteEncrptMsg
-	jal printStr
-	la $a0,fullNameOfEncrptMsg
-	jal openFileToWrite
+  jal printStr
+  la $a0,fullNameOfEncrptMsg
+  jal openFileToWrite
   move $s4,$v0
 
   # Write the encrypted message
-	move $a0,$s4
-	la $a1,bufferMsgData
-	li $a2,128
-	jal writeFile
+  move $a0,$s4
+  la $a1,bufferMsgData
+  li $a2,128
+  jal writeFile
 
   # Close the encrypted message
   move $a0,$s4
@@ -464,27 +519,27 @@ main:
 
   # Decrypt message
   la $a0,promptDecrptMsg
-	jal printStr
-	la $a0,bufferKeyData
-	move $a1,$s2
-	jal decryptMsg
+  jal printStr
+  la $a0,bufferKeyData
+  move $a1,$s2
+  jal decryptMsg
 
   # Open file to write the decrypted message
   la $a0,promptWriteDecrptMsg
   jal printStr
   la $a0,fullNameOfDecrptMsg
-	jal openFileToWrite
-	move $s4,$v0
+  jal openFileToWrite
+  move $s4,$v0
 
-	# Write the decrypted message
-	move $a0,$s4
-	la $a1,bufferMsgData
-	li $a2,128
-	jal writeFile
+  # Write the decrypted message
+  move $a0,$s4
+  la $a1,bufferMsgData
+  li $a2,128
+  jal writeFile
 
-	# Close the decrypted message
-	move $a0,$s4
-	jal closeFile
+  # Close the decrypted message
+  move $a0,$s4
+  jal closeFile
 
   j endProgram
 
