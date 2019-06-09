@@ -32,11 +32,11 @@ bufferDecrptData: .space 128
 
 # Messages
 promptReadKey: .asciiz "1 - Read file chiave.txt\n"
-promptReadMsg: .asciiz "2 - Read file messaggio.txt\n"
-promptEncrptMsg: .asciiz "3 - Encrypt the original message\n"
-promptWriteEncrptMsg: .asciiz "4 - Write the file mesasggioCifrato.txt\n"
-promptDecrptMsg: .asciiz "5 - Decrypt the encrypted message\n"
-promptWriteDecrptMsg: .asciiz "6 - Write the file messaggioDecifrato.txt\n"
+promptReadMsg: .asciiz "\n2 - Read file messaggio.txt\n"
+promptEncrptMsg: .asciiz "\n3 - Encrypt the original message\n"
+promptWriteEncrptMsg: .asciiz "\n4 - Write the file mesasggioCifrato.txt\n"
+promptDecrptMsg: .asciiz "\n5 - Decrypt the encrypted message\n"
+promptWriteDecrptMsg: .asciiz "\n6 - Write the file messaggioDecifrato.txt\n"
 msgErrKeyNotExist: .asciiz "File of key not exist!\n"
 msgErrKeyIsEmpty: .asciiz "File of key is empty!\n"
 msgErrMsgNotExist: .asciiz "File of message not exist!\n"
@@ -55,7 +55,7 @@ promptAlgDecrptD: .asciiz "\nApplied the algorithm of decryption D\n"
 promptAlgDecrptE: .asciiz "\nApplied the algorithm of decryption E\n"
 
 .align 2
-jumpEncrtpTable: .word	encrptA encrptB encrptC encrptD encrptE
+jumpEncrtpTable: .word  encrptA encrptB encrptC encrptD encrptE
 jumpDecrptTable: .word  decrptA decrptB decrptC decrptD decrptE
 
 ################################# Code segment #################################
@@ -185,7 +185,6 @@ module:
 encryptA:
   # Procedure for algorithm A
   # $a0: original message
-  # $a1: encrypt message
 
   move $t0,$a0
   move $t2,$a1
@@ -196,17 +195,13 @@ encryptA:
 nextChrEncryptA:
   lb $t1,($t0)
   beqz $t1,endBufferEncryptA
-  move $a0,$t1
-  addi $a0,4
-  addi $a1,$zero,256
-  jal module
-  addi $sp,$sp,-4
-  sw $v0,0($sp)
+  move $a0,$t1                # Start - char encoding
+  addi $a0,4                  # .
+  li $a1,256                  # .
+  jal module                  # End - char endcoding
+  sb $v0,0($t0)               # Store coded char
   move $a0,$v0
   jal printChr
-  lw $v0,0($sp)
-  addi $sp,$sp,4
-  sb $v0,0($t0)
   add $t0,$t0,1
   j nextChrEncryptA
 
@@ -228,11 +223,36 @@ decryptA:
 
 encryptB:
   # Procedure for algorithm B
+  # $a0: original message
 
+  move $t0,$a0
+  move $t2,$a1
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgEncrptB
   jal printStr
+  move $t3,$zero
+nextChrEncryptB:
+  lb $t1,($t0)
+  beqz $t1,endBufferEncryptB
+  move $a0,$t3
+  li $a1,2
+  jal module
+  bnez $v0,jumpEncoding
+  move $a0,$t1                # Start - char encoding
+  addi $a0,4                  # .
+  li $a1,256                  # .
+  jal module                  # End - char encoding
+  move $t1,$v0
+jumpEncoding:
+  sb $t1,0($t0)               # Store coded char
+  move $a0,$t1
+  jal printChr
+  add $t3,$t3,1
+  add $t0,$t0,1
+  j nextChrEncryptB
+
+endBufferEncryptB:
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -348,7 +368,6 @@ encrptA:
   addi $sp,$sp,-4
   sw $t5,0($sp)
   la $a0,bufferMsgData
-  la $a1,bufferEncrptData
   jal encryptA
   lw $t5,0($sp)
   addi $sp,$sp,4
@@ -362,7 +381,28 @@ encrptA:
   addi $sp,$sp,4
   j exitCaseEncrpt
 encrptB:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $t3,0($sp)
+  addi $sp,$sp,-4
+  sw $t4,0($sp)
+  addi $sp,$sp,-4
+  sw $t5,0($sp)
+  la $a0,bufferMsgData
   jal encryptB
+  lw $t5,0($sp)
+  addi $sp,$sp,4
+  lw $t4,0($sp)
+  addi $sp,$sp,4
+  lw $t3,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
   j exitCaseEncrpt
 encrptC:
   jal encryptC
