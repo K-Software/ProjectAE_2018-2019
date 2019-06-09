@@ -187,7 +187,6 @@ encryptA:
   # $a0: original message
 
   move $t0,$a0
-  move $t2,$a1
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgEncrptA
@@ -211,12 +210,28 @@ endBufferEncryptA:
   jr $ra
 
 decryptA:
-  # Procedure for algorithm A
+  # Procedure for decryption algorithm A
+  # $a0: coded message
 
+  move $t0,$a0
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgDecrptA
   jal printStr
+nextChrDecryptA:
+  lb $t1,($t0)
+  beqz $t1,endBufferDecryptA
+  move $a0,$t1                # Start - char decoding
+  addi $a0,-4                 # .
+  li $a1,256                  # .
+  jal module                  # End - char decoding
+  sb $v0,0($t0)               # Store decoded char
+  move $a0,$v0
+  jal printChr
+  add $t0,$t0,1
+  j nextChrDecryptA
+
+endBufferDecryptA:
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -226,7 +241,6 @@ encryptB:
   # $a0: original message
 
   move $t0,$a0
-  move $t2,$a1
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgEncrptB
@@ -273,7 +287,6 @@ encryptC:
   # $a0: original message
 
   move $t0,$a0
-  move $t2,$a1
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgEncrptC
@@ -363,6 +376,8 @@ encryptMsg:
   # Procedure to encrypth message
   # This procedure applies the right algorithm or the algorithms on the message
   # in base on the key of the encryption.
+  # $a0: Encrypth key
+  # $a1: length of Key
 
   # Prepare the jump table of algorithms
   la $t1,jumpEncrtpTable
@@ -472,6 +487,8 @@ decryptMsg:
   # Procedure to decrypth the encrypted message
   # This procedure applies the right algorithm or the algorithms on the message
   # in base on the key of the encryption.
+  # $a0: Encrypth key
+  # $a1: length of Key
 
   # Prepare the jump table of algorithms
   la $t1,jumpDecrptTable
@@ -491,7 +508,28 @@ nextDecrpt:
   lw $t0,0($t0)
   jr $t0
 decrptA:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $t3,0($sp)
+  addi $sp,$sp,-4
+  sw $t4,0($sp)
+  addi $sp,$sp,-4
+  sw $t5,0($sp)
+  la $a0,bufferEncrptData
   jal decryptA
+  lw $t5,0($sp)
+  addi $sp,$sp,4
+  lw $t4,0($sp)
+  addi $sp,$sp,4
+  lw $t3,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
   j exitCaseDecrpt
 decrptB:
   jal decryptB
@@ -579,7 +617,9 @@ main:
   # Check if file of key is empty
 	beq $v0,$zero,msgIsEmpty
 
-  # Encrypt message
+  ##############################################################################
+  #                              Encrypt message                               #
+  ##############################################################################
   la $a0,promptEncrptMsg
   jal printStr
   la $a0,bufferKeyData
@@ -603,7 +643,20 @@ main:
   move $a0,$s4
   jal closeFile
 
-  # Decrypt message
+  ##############################################################################
+  #                            Decrypt message                                 #
+  ##############################################################################
+  # Open file to read coded message
+  la $a0,fullNameOfEncrptMsg
+  jal openFileToRead
+
+  # Read the encrypth message
+  move $a0,$v0
+  la $a1,bufferEncrptData
+  li $a2,128
+  jal readFile
+  move $s3,$v0
+
   la $a0,promptDecrptMsg
   jal printStr
   la $a0,bufferKeyData
@@ -619,7 +672,7 @@ main:
 
   # Write the decrypted message
   move $a0,$s4
-  la $a1,bufferMsgData
+  la $a1,bufferEncrptData
   li $a2,128
   jal writeFile
 
