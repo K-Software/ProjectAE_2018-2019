@@ -238,13 +238,13 @@ nextChrEncryptB:
   move $a0,$t3
   li $a1,2
   jal module
-  bnez $v0,jumpEncoding
+  bnez $v0,jumpEncodingB
   move $a0,$t1                # Start - char encoding
   addi $a0,4                  # .
   li $a1,256                  # .
   jal module                  # End - char encoding
   move $t1,$v0
-jumpEncoding:
+jumpEncodingB:
   sb $t1,0($t0)               # Store coded char
   move $a0,$t1
   jal printChr
@@ -270,11 +270,36 @@ decryptB:
 
 encryptC:
   # Procedure for algorithm C
+  # $a0: original message
 
+  move $t0,$a0
+  move $t2,$a1
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgEncrptC
   jal printStr
+  move $t3,$zero
+nextChrEncryptC:
+  lb $t1,($t0)
+  beqz $t1,endBufferEncryptC
+  move $a0,$t3
+  li $a1,2
+  jal module
+  beqz $v0,jumpEncodingC
+  move $a0,$t1                # Start - char encoding
+  addi $a0,4                  # .
+  li $a1,256                  # .
+  jal module                  # End - char encoding
+  move $t1,$v0
+jumpEncodingC:
+  sb $t1,0($t0)               # Store coded char
+  move $a0,$t1
+  jal printChr
+  add $t3,$t3,1
+  add $t0,$t0,1
+  j nextChrEncryptC
+
+endBufferEncryptC:
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -405,7 +430,28 @@ encrptB:
   addi $sp,$sp,4
   j exitCaseEncrpt
 encrptC:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $t3,0($sp)
+  addi $sp,$sp,-4
+  sw $t4,0($sp)
+  addi $sp,$sp,-4
+  sw $t5,0($sp)
+  la $a0,bufferMsgData
   jal encryptC
+  lw $t5,0($sp)
+  addi $sp,$sp,4
+  lw $t4,0($sp)
+  addi $sp,$sp,4
+  lw $t3,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
   j exitCaseEncrpt
 encrptD:
   jal encryptD
