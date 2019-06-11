@@ -272,12 +272,36 @@ endBufferEncryptB:
   jr $ra
 
 decryptB:
-  # Procedure for algorithm B
+  # Procedure for decryption algorithm B
+  # $a0: original message
 
+  move $t0,$a0
   addi $sp,$sp,-4
   sw $ra,0($sp)
   la $a0,promptAlgDecrptB
   jal printStr
+  move $t3,$zero
+nextChrDecryptB:
+  lb $t1,($t0)
+  beqz $t1,endBufferDecryptB
+  move $a0,$t3
+  li $a1,2
+  jal module
+  bnez $v0,jumpDecodingB
+  move $a0,$t1                # Start - char decoding
+  addi $a0,-4                 # .
+  li $a1,256                  # .
+  jal module                  # End - char decoding
+  move $t1,$v0
+jumpDecodingB:
+  sb $t1,0($t0)               # Store decoded char
+  move $a0,$t1
+  jal printChr
+  add $t3,$t3,1
+  add $t0,$t0,1
+  j nextChrDecryptB
+
+endBufferDecryptB:
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -532,7 +556,28 @@ decrptA:
   addi $sp,$sp,4
   j exitCaseDecrpt
 decrptB:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $t3,0($sp)
+  addi $sp,$sp,-4
+  sw $t4,0($sp)
+  addi $sp,$sp,-4
+  sw $t5,0($sp)
+  la $a0,bufferEncrptData
   jal decryptB
+  lw $t5,0($sp)
+  addi $sp,$sp,4
+  lw $t4,0($sp)
+  addi $sp,$sp,4
+  lw $t3,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
   j exitCaseDecrpt
 decrptC:
   jal decryptC
