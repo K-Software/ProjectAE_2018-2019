@@ -1,17 +1,17 @@
 ################################################################################
-# Title:                                      Filename: encrypter.s
-# Author: Simone Cappabianca                  Date: 25/02/2019
-# Description: ...
-# Input: ...
-# Output: ...
-# $s0: Full name of the key file
-# $s1: Full name of the message file
-# $s2: Length of key
-# $s3: length of message
-# $s4: Full name of the crypted file 
+# Title:                                      Filename: encrypter.s            #
+# Author: Simone Cappabianca                  Date: 25/02/2019                 #
+# Description: ...                                                             #
+# Input: ...                                                                   #
+# Output: ...                                                                  #
+# $s2: Length of the encrypt key                                               #
+# $s3: Length of messages(original message, encrypted message,                 #
+#      decrypted message)                                                      #
 ################################################################################
 
-################################# Data segment #################################
+################################################################################
+################################# DATA SEGMENT #################################
+################################################################################
 .data
 
 # Key
@@ -20,19 +20,24 @@ bufferKeyData: .space 5
 
 # Message
 fullNameOfMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggio.txt"
-bufferMsgData: .space 128
+bufferMsgData: .space 513
 
 # Encrypt Message
 fullNameOfEncrptMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggioCifrato.txt"
-bufferEncrptData: .space 128
+bufferEncrptData: .space 513
+bufferEncrptDataTmp: .space 513
 
 # Decrypt Message
 fullNameOfDecrptMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggioDecifrato.txt"
-bufferDecrptData: .space 128
+bufferDecrptData: .space 513
+bufferDecrptDataTmp: .space 513
+
+positionCounter: .byte 0
 
 # Messages
 promptReadKey: .asciiz "1 - Read file chiave.txt\n"
 promptReadMsg: .asciiz "\n2 - Read file messaggio.txt\n"
+promptLengthMsg: .asciiz "\n2.1 - Length of messsage: "
 promptEncrptMsg: .asciiz "\n3 - Encrypt the original message\n"
 promptWriteEncrptMsg: .asciiz "\n4 - Write the file mesasggioCifrato.txt\n"
 promptDecrptMsg: .asciiz "\n5 - Decrypt the encrypted message\n"
@@ -53,15 +58,19 @@ promptAlgDecrptB: .asciiz "\nApplied the algorithm of decryption B\n"
 promptAlgDecrptC: .asciiz "\nApplied the algorithm of decryption C\n"
 promptAlgDecrptD: .asciiz "\nApplied the algorithm of decryption D\n"
 promptAlgDecrptE: .asciiz "\nApplied the algorithm of decryption E\n"
+positionSeparetor: .asciiz "-"
+charSeparetor: .asciiz " "
 
 .align 2
 jumpEncrtpTable: .word  encrptA encrptB encrptC encrptD encrptE
 jumpDecrptTable: .word  decrptA decrptB decrptC decrptD decrptE
 
+################################################################################
 ################################# Code segment #################################
+################################################################################
 .text
 .globl main
-
+.align 2
 ########################################
 #               printStr               #
 ########################################
@@ -102,7 +111,7 @@ printBuffer:
   # Procedure to print a buffer
   # $a0: address of input buffer
 
-  move $t0,$a0                  # $t3 buffer
+  move $t0,$a0                          # $t3 buffer
   addi $sp,$sp,-4
   sw $ra,0($sp)
 nextChr:
@@ -147,7 +156,7 @@ length:
   # $v0: length of string
 
   move $t2,$a0
-  li $t1,0
+  move $t1,$zero
 nextCh:
   lb $t0,($t2)
   beqz $t0,strEnd
@@ -156,7 +165,7 @@ nextCh:
   j nextCh
 
 strEnd:
-  addi $t1,$t1,-1
+  add $t1,$t1,-1
   move $v0,$t1
   jr $ra
 
@@ -167,10 +176,10 @@ openFileToRead:
   # Procedure to open file in read mode
   # $a0 = address of null-terminated string containing filename
 
-  li $v0, 13         # system call for open file
-  li $a1, 0          # flag for reading
-  li $a2, 0          # mode is ignored
-  syscall            # open a file
+  li $v0,13                             # system call for open file
+  li $a1,0                              # flag for reading
+  li $a2,0                              # mode is ignored
+  syscall                               # open a file
   jr $ra
 
 ########################################
@@ -182,7 +191,7 @@ readFile:
   # $a1: address of input buffer
   # $a2: maximum number of characters to read
 
-  li $v0,14
+  li $v0,14                             # system call for read file
   syscall
   jr $ra
 
@@ -193,10 +202,10 @@ openFileToWrite:
   # Procedure to open file in write mode
   # $a0: output file name
 
-  li $v0, 13 # system call for open file
-  li $a1, 1 # flag for writing
-  li $a2, 0 # mode is ignored
-  syscall # open a file
+  li $v0, 13                            # system call for open file
+  li $a1, 1                             # flag for writing
+  li $a2, 0                             # mode is ignored
+  syscall                               # open a file
 	jr $ra
 
 ########################################
@@ -208,7 +217,7 @@ writeFile:
   # $a1: address of buffer from which to write
   # $s2: hardcoded buffer length
 
-  li $v0, 15
+  li $v0, 15                            # system call for write file
   syscall
   jr $ra
 
@@ -219,7 +228,19 @@ closeFile:
   # Procedure to close file
   # $a0: file descriptor
 
-  li $v0,16
+  li $v0,16                             # system call for close file
+  syscall
+  jr $ra
+
+########################################
+#                sbrk                  #
+########################################
+sbrk:
+  # Procedure to allocate heap memory
+  # $a0: number of bytes to allocate
+  # $v0: address of allocated memory
+
+  li $v0,9
   syscall
   jr $ra
 
@@ -242,23 +263,55 @@ module:
 encryptA:
   # Procedure for algorithm A
   # $a0: original message
+  # $v0: length of the encrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                          # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgEncrptA
   jal printStr
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 nextChrEncryptA:
   lb $t1,($t0)
   beqz $t1,endBufferEncryptA
-  move $a0,$t1                # Start - char encoding
-  addi $a0,4                  # .
-  li $a1,256                  # .
-  jal module                  # End - char endcoding
-  sb $v0,0($t0)               # Store coded char
-  move $a0,$v0
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                          # Start - char encoding
+  addi $a0,4                            # .
+  li $a1,256                            # .
+  jal module                            # End - char endcoding
+  move $t2,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  sb $t2,0($t0)                         # Store coded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,($sp)
+  move $a0,$t2
   jal printChr
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
   add $t0,$t0,1
+  addi $v0,1
   j nextChrEncryptA
 
 endBufferEncryptA:
@@ -272,23 +325,46 @@ endBufferEncryptA:
 decryptA:
   # Procedure for decryption algorithm A
   # $a0: coded message
+  # $v0: length of the decrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                          # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgDecrptA
   jal printStr
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 nextChrDecryptA:
   lb $t1,($t0)
   beqz $t1,endBufferDecryptA
-  move $a0,$t1                # Start - char decoding
-  addi $a0,-4                 # .
-  li $a1,256                  # .
-  jal module                  # End - char decoding
-  sb $v0,0($t0)               # Store decoded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                          # Start - char decoding
+  addi $a0,-4                           # .
+  li $a1,256                            # .
+  jal module                            # End - char decoding
+  sb $v0,0($t0)                         # Store decoded char
   move $a0,$v0
   jal printChr
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
   add $t0,$t0,1
+  addi $v0,1
   j nextChrDecryptA
 
 endBufferDecryptA:
@@ -302,31 +378,83 @@ endBufferDecryptA:
 encryptB:
   # Procedure for algorithm B
   # $a0: original message
+  # $v0: length of the encrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                          # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgEncrptB
   jal printStr
-  move $t3,$zero
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  move $t2,$zero
 nextChrEncryptB:
   lb $t1,($t0)
   beqz $t1,endBufferEncryptB
-  move $a0,$t3
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t2
   li $a1,2
   jal module
-  bnez $v0,jumpEncodingB
-  move $a0,$t1                # Start - char encoding
-  addi $a0,4                  # .
-  li $a1,256                  # .
-  jal module                  # End - char encoding
+  move $t3,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  bnez $t3,jumpEncodingB
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                          # Start - char encoding
+  addi $a0,4                            # .
+  li $a1,256                            # .
+  jal module                            # End - char encoding
   move $t1,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 jumpEncodingB:
-  sb $t1,0($t0)               # Store coded char
+  sb $t1,0($t0)                         # Store coded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   move $a0,$t1
   jal printChr
-  add $t3,$t3,1
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  add $t2,$t2,1
   add $t0,$t0,1
+  add $v0,$v0,1
   j nextChrEncryptB
 
 endBufferEncryptB:
@@ -340,31 +468,83 @@ endBufferEncryptB:
 decryptB:
   # Procedure for decryption algorithm B
   # $a0: coded message
+  # $v0: length of the decrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                           # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgDecrptB
   jal printStr
-  move $t3,$zero
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  move $t2,$zero
 nextChrDecryptB:
   lb $t1,($t0)
   beqz $t1,endBufferDecryptB
-  move $a0,$t3
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t2
   li $a1,2
   jal module
-  bnez $v0,jumpDecodingB
-  move $a0,$t1                # Start - char decoding
-  addi $a0,-4                 # .
-  li $a1,256                  # .
-  jal module                  # End - char decoding
+  move $t3,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  bnez $t3,jumpDecodingB
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                           # Start - char decoding
+  addi $a0,-4                            # .
+  li $a1,256                             # .
+  jal module                             # End - char decoding
   move $t1,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 jumpDecodingB:
-  sb $t1,0($t0)               # Store decoded char
+  sb $t1,0($t0)                          # Store decoded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   move $a0,$t1
   jal printChr
-  add $t3,$t3,1
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  add $t2,$t2,1
   add $t0,$t0,1
+  add $v0,$v0,1
   j nextChrDecryptB
 
 endBufferDecryptB:
@@ -378,31 +558,83 @@ endBufferDecryptB:
 encryptC:
   # Procedure for algorithm C
   # $a0: original message
+  # $v0: length of the encrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                          # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgEncrptC
   jal printStr
-  move $t3,$zero
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  move $t2,$zero
 nextChrEncryptC:
   lb $t1,($t0)
   beqz $t1,endBufferEncryptC
-  move $a0,$t3
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t2
   li $a1,2
   jal module
-  beqz $v0,jumpEncodingC
-  move $a0,$t1                # Start - char encoding
-  addi $a0,4                  # .
-  li $a1,256                  # .
-  jal module                  # End - char encoding
+  move $t3,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  beqz $t3,jumpEncodingC
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                          # Start - char encoding
+  addi $a0,4                            # .
+  li $a1,256                            # .
+  jal module                            # End - char encoding
   move $t1,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 jumpEncodingC:
-  sb $t1,0($t0)               # Store coded char
+  sb $t1,0($t0)                         # Store coded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   move $a0,$t1
   jal printChr
-  add $t3,$t3,1
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  add $t2,$t2,1
   add $t0,$t0,1
+  add $v0,$v0,1
   j nextChrEncryptC
 
 endBufferEncryptC:
@@ -416,31 +648,84 @@ endBufferEncryptC:
 decryptC:
   # Procedure for decryption algorithm B
   # $a0: coded message
+  # $v0: length of the decrypted message
 
-  move $t0,$a0
-  addi $sp,$sp,-4
+  move $t0,$a0                          # $t0: Message
+  move $v0,$zero
+  add $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgDecrptC
   jal printStr
-  move $t3,$zero
+  move $t2,$zero
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  move $t2,$zero
 nextChrDecryptC:
   lb $t1,($t0)
   beqz $t1,endBufferDecryptC
-  move $a0,$t3
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t2
   li $a1,2
   jal module
-  beqz $v0,jumpDecodingC
-  move $a0,$t1                # Start - char decoding
-  addi $a0,-4                 # .
-  li $a1,256                  # .
-  jal module                  # End - char decoding
+  move $t3,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  beqz $t3,jumpDecodingC
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t1                          # Start - char decoding
+  addi $a0,-4                           # .
+  li $a1,256                            # .
+  jal module                            # End - char decoding
   move $t1,$v0
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
 jumpDecodingC:
-  sb $t1,0($t0)               # Store coded char
+  sb $t1,0($t0)                         # Store coded char
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
   move $a0,$t1
   jal printChr
-  add $t3,$t3,1
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  add $t2,$t2,1
   add $t0,$t0,1
+  add $v0,$v0,1
   j nextChrDecryptC
 
 endBufferDecryptC:
@@ -454,29 +739,42 @@ endBufferDecryptC:
 encryptD:
   # Procedure for algorithm D
   # $a0: original message
+  # $v0: length of the encrypted message
 
-  move $t0,$a0                  # $t0: Message
-  move $t1,$a0                  # $t1: Message
-  move $t5,$a0                  # $t5: Message
+  move $t0,$a0                          # $t0: Message
+  move $t1,$a0                          # $t1: Message
+  move $t5,$a0                          # $t5: Message
   addi $sp,$sp,-4
   sw $ra,0($sp)
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t5,0($sp)
   la $a0,promptAlgEncrptD
   jal printStr
-  addi $sp,$sp,-4
+  lw $t5,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  add $sp,$sp,-4
   sw $t0,0($sp)
-  addi $sp,$sp,-4
+  add $sp,$sp,-4
   sw $t1,0($sp)
-  addi $sp,$sp,-4
+  add $sp,$sp,-4
   sw $t5,0($sp)
   move $a0,$t0
   jal length
+  move $t2,$v0                          # $t2: Length of message
   lw $t5,0($sp)
-  addi $sp,$sp,4
+  add $sp,$sp,4
   lw $t1,0($sp)
-  addi $sp,$sp,4
+  add $sp,$sp,4
   lw $t0,0($sp)
-  addi $sp,$sp,4
-  move $t2,$v0                  # $t2: Length of message
+  add $sp,$sp,4
   move $a1,$zero
   addi $a2,$t2,-1
   add $t1,$t1,$a2
@@ -485,16 +783,34 @@ nextChrEncryptD:
   lb $t4,($t1)
   sub $a3,$t1,$t0
   blez $a3,endBufferEncryptD
-  sb $t4,($t0)                 # Store char in new position
-  sb $t3,($t1)                 # Store char in new position
+  sb $t4,($t0)                          # Store char in new position
+  sb $t3,($t1)                          # Store char in new position
   add $t0,$t0,1
   sub $t1,$t1,1
   j nextChrEncryptD
 
 endBufferEncryptD:
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t1,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $t5,0($sp)
   move $a0,$t5
   jal printBuffer
+  lw $t5,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t1,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
   lw $ra,0($sp)
+  add $t2,$t2,1
+  move $v0,$t2
   addi $sp,$sp,4
   jr $ra
 
@@ -504,6 +820,7 @@ endBufferEncryptD:
 decryptD:
   # Procedure for decryption algorithm D
   # $a0: coded message
+  # $v0: lenght of the decrypted message
 
   addi $sp,$sp,-4
   sw $ra,0($sp)
@@ -517,11 +834,239 @@ decryptD:
 ########################################
 encryptE:
   # Procedure for algorithm E
+  # $a0: original message
+  # $v0: length of the encrypted message
 
-  addi $sp,$sp,-4
+  # Make a copy of original message
+  move $t0,$a0                          # $t0: Original message
+  la $t1,bufferEncrptDataTmp            # $t1: Temporaty copy
+loopCopyEncryptE:
+  lb $t2,($t0)
+  lb $t3,($t1)
+  beqz $t2,endCopyEncryptE
+  sb $t2,($t1)
+  add $t0,$t0,1
+  add $t1,$t1,1
+  j loopCopyEncryptE
+endCopyEncryptE:
+
+  move $t0,$a0                          # $t0: Original message
+  move $t3,$a0                          # $t3: Original message
+  add $sp,$sp,-4
   sw $ra,0($sp)
-  la $a0,promptAlgEncrptE
+  add $sp,$sp,-4
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t3,0($sp)
+  la $a0,promptAlgEncrptE               # Print pront message
   jal printStr
+  lw $t3,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  move $t8,$zero                        # $t8: Head
+  move $t9,$zero                        # $t9: Tail
+
+# Create a list with all the characters present in the message
+nextChrEncryptE:
+  lb $t2,($t0)
+  beqz $t2,endBufferEncryptE
+  bne $t8,$zero, linkLast
+  addi $sp,$sp,-4                       # Start - Added first char
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $t3,0($sp)
+  add $sp,$sp,-4
+  sw $t8,0($sp)
+  add $sp,$sp,-4
+  sw $t9,0($sp)
+  li $a0,5
+  jal sbrk
+  lw $t9,0($sp)
+  add $sp,$sp,4
+  lw $t8,0($sp)
+  add $sp,$sp,4
+  lw $t3,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  sb $t2,4($v0)
+  sw $zero,0($v0)
+  move $t8,$v0
+  move $t9,$v0
+  j endOfLoop                           # End - Added first char
+linkLast:
+  move $t7,$t8                          # $t7 = head of list
+loopSearchChar:
+  beq $t7,$zero,addNewElement
+  lb $a2,4($t7)
+  beq $a2,$t2,endOfLoop
+  lw $t7,0($t7)
+  j loopSearchChar
+
+addNewElement:
+  add $sp,$sp,-4                       # Start - Added new char
+  sw $t0,0($sp)
+  add $sp,$sp,-4
+  sw $t2,0($sp)
+  add $sp,$sp,-4
+  sw $t3,0($sp)
+  add $sp,$sp,-4
+  sw $t8,0($sp)
+  add $sp,$sp,-4
+  sw $t9,0($sp)
+  li $a0,5
+  jal sbrk
+  lw $t9,0($sp)
+  add $sp,$sp,4
+  lw $t8,0($sp)
+  add $sp,$sp,4
+  lw $t3,0($sp)
+  add $sp,$sp,4
+  lw $t2,0($sp)
+  add $sp,$sp,4
+  lw $t0,0($sp)
+  add $sp,$sp,4
+  sw $v0,0($t9)
+  sb $t2,4($v0)
+  sw $zero,0($v0)
+  move $t9,$v0                          # End - Added new char
+
+endOfLoop:
+  add $t0,$t0,1
+  j nextChrEncryptE
+
+endBufferEncryptE:
+  move $t7,$t8                          # $t7 = head of list
+  move $v0,$zero
+loopPrint:
+  beq $t7,$zero,endPrint
+  lb $a0,4($t7)                         # Store a char
+  sb $a0,0($t3)
+  add $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+  add $sp,$sp,-4
+  sw $t3,0($sp)
+  add $sp,$sp,-4
+  sw $t7,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  lb $a0,4($t7)
+  jal printChr                          # Print a char
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t7,0($sp)
+  add $sp,$sp,4
+  lw $t3,0($sp)
+  add $sp,$sp,4
+  # Store char
+  la $t1,bufferEncrptDataTmp
+  lb $a0,positionCounter                # Position counter
+  lb $a1,4($t7)                         # Char
+loopSearchPosition:
+  lb $t2,0($t1)
+  beqz $t2,endLooopSearchPosition
+  bne $t2,$a1,noPrintPosition
+  lb $t4,positionSeparetor              # Store positionSeparetor
+  sb $t4,0($t3)
+  addi $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+  move $t4,$a0
+  addi $t5,$zero,100
+  div $t4,$t5
+  mflo $t4
+  beqz $t4, tens
+  add $t4,$t4,48
+  sb $t4,0($t3)                         # Store position hundreds
+  add $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+tens:
+  mfhi $t4
+  add $t5,$zero,10
+  div $t4,$t5
+  mflo $t4
+  beqz $t4, units
+  addi $t4,$t4,48
+  sb $t4,0($t3)                         # Store position tens
+  addi $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+units:
+  mfhi $t4
+  addi $t4,$t4,48
+  sb $t4,0($t3)                         # Store position units
+  addi $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+  # TODO: Store positione and increase the length
+  addi $sp,$sp,-4
+  sw $t7,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $a0,0($sp)
+  addi $sp,$sp,-4
+  sw $a1,0($sp)
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
+  la $a0,positionSeparetor              # Print positionSeparator
+  jal printStr
+  lw $v0,0($sp)
+  addi $sp,$sp,4
+  lw $a1,0($sp)
+  addi $sp,$sp,4
+  lw $a0,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t7,0($sp)
+  addi $sp,$sp,4
+  addi $sp,$sp,-4
+  sw $t7,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $a0,0($sp)
+  addi $sp,$sp,-4
+  sw $a1,0($sp)
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
+  jal printInt                          # Print position
+  lw $v0,0($sp)
+  addi $sp,$sp,4
+  lw $a1,0($sp)
+  addi $sp,$sp,4
+  lw $a0,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t7,0($sp)
+  addi $sp,$sp,4
+noPrintPosition:
+  add $t1,$t1,1
+  add $a0,$a0,1
+  j loopSearchPosition
+endLooopSearchPosition:
+  lw $t7,0($t7)
+  lb $a0,charSeparetor                  # Store char separator
+  sb $a0,0($t3)
+  add $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
+  add $sp,$sp,-4
+  sw $t7,0($sp)
+  add $sp,$sp,-4
+  sw $v0,0($sp)
+  la $a0,charSeparetor                  # Print char sperator
+  jal printStr
+  lw $v0,0($sp)
+  add $sp,$sp,4
+  lw $t7,0($sp)
+  add $sp,$sp,4
+  j loopPrint
+endPrint:
+
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -531,11 +1076,84 @@ encryptE:
 ########################################
 decryptE:
   # Procedure for algorithm E
+  # $a0: coded message
+  # $v0: lenght of the decrypted message
 
+  move $t0,$a0                          # Message
+  la $t1,bufferDecrptDataTmp            # Temp buffer
+loopCopyDecryptE:                       # Copy the encrypt message in the
+  lb $t2,0($t0)                         # temp buffer and clear the original
+  beqz $t2,endCopyDecryptE
+  sb $t2,0($t1)
+  sb $zero,0($t0)
+  add $t0,$t0,1
+  add $t1,$t1,1
+  j loopCopyDecryptE
+endCopyDecryptE:
+  move $t0,$a0                          # Message
+  la $t1,bufferDecrptDataTmp
+  move $v0,$zero
   addi $sp,$sp,-4
   sw $ra,0($sp)
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $t1,0($sp)
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
   la $a0,promptAlgDecrptE
   jal printStr
+  lw $v0,0($sp)
+  addi $sp,$sp,4
+  lw $t1,0($sp)
+  addi $sp,$sp,4
+  lw $t0,0($sp)
+  addi $sp,$sp,4
+nextChrDecryptE:
+  lb $t2,0($t1)                         # Char
+  beqz $t2,cleanTmpBuffer
+  addi $t1,$t1,2
+nextPosition:
+  lb $t3,0($t1)                         # Position (first digit)
+  addi $t3,$t3,-48
+nextDigitOfPosition:
+  addi $t1,$t1,1
+  lb $t4,0($t1)                         # Take the next char
+  addi $t4,$t4,-48
+  bgez $t4,updatedPosition              # If is a number add digit to position
+  add $t0,$t0,$t3                       # In $t3 there is a position of char
+  sb $t2,0($t0)                         # Store char
+  sub $t0,$t0,$t3
+  addi $v0,$v0,1                        # Increase the length of the message
+  addi $t1,$t1,1
+  addi $t4,$t4,3
+  beqz $t4,nextPosition
+  j nextChrDecryptE
+updatedPosition:
+  mul $t3,$t3,10
+  add $t3,$t3,$t4
+  j nextDigitOfPosition
+
+cleanTmpBuffer:                         # Clear the temp buffer
+  la $t1,bufferDecrptDataTmp
+loopCleanTmp:
+  lb $t2,0($t1)
+  beqz $t2,endBufferDecryptE
+  sb $zero,0($t1)
+  add $t1,$t1,1
+  j loopCleanTmp
+
+endBufferDecryptE:
+  addi $sp,$sp,-4
+  sw $t0,0($sp)
+  addi $sp,$sp,-4
+  sw $v0,0($sp)
+  move $a0,$t0
+  jal printBuffer
+  lw $v0,0($sp)
+  addi $sp,$sp,4
+  lw $t0,($sp)
+  addi $sp,$sp,4
   lw $ra,0($sp)
   addi $sp,$sp,4
   jr $ra
@@ -547,8 +1165,9 @@ encryptMsg:
   # Procedure to encrypth message
   # This procedure applies the right algorithm or the algorithms on the message
   # in base on the key of the encryption.
-  # $a0: Encrypth key
+  # $a0: encrypth key
   # $a1: length of Key
+  # $v0: length of the encrypted message
 
   # Prepare the jump table of algorithms
   la $t1,jumpEncrtpTable
@@ -856,6 +1475,23 @@ endDecrpt:
 main:
 ################################################################################
 
+  addi $sp,$sp,-4
+  sw $s0,0($sp)
+  addi $sp,$sp,-4
+  sw $s1,0($sp)
+  addi $sp,$sp,-4
+  sw $s2,0($sp)
+  addi $sp,$sp,-4
+  sw $s3,0($sp)
+  addi $sp,$sp,-4
+  sw $s4,0($sp)
+  addi $sp,$sp,-4
+  sw $s5,0($sp)
+  addi $sp,$sp,-4
+  sw $s6,0($sp)
+  addi $sp,$sp,-4
+  sw $s7,0($sp)
+
   # Open file to read the key
   la $a0,promptReadKey
   jal printStr
@@ -873,7 +1509,7 @@ main:
   move $s2,$v0
 
   # Check if file of key is empty
-  beq $v0,$zero,keyIsEmpty
+  beq $s2,$zero,keyIsEmpty
 
   # Open file to read message
   la $a0,promptReadMsg
@@ -892,7 +1528,15 @@ main:
   move $s3,$v0
 
   # Check if file of key is empty
-	beq $v0,$zero,msgIsEmpty
+  beq $s3,$zero,msgIsEmpty
+
+  # Diplay the length of message
+  la $a0,promptLengthMsg
+  jal printStr
+  move $a0,$s3
+  jal printInt
+  la $a0,lineFeed
+  jal printStr
 
   ##############################################################################
   #                              Encrypt message                               #
@@ -902,6 +1546,7 @@ main:
   la $a0,bufferKeyData
   move $a1,$s2
   jal encryptMsg
+  move $s3,$v0
 
   # Open file to write the encrypth message
   la $a0,promptWriteEncrptMsg
@@ -913,7 +1558,7 @@ main:
   # Write the encrypted message
   move $a0,$s4
   la $a1,bufferMsgData
-  li $a2,128
+  move $a2,$s3
   jal writeFile
 
   # Close the encrypted message
@@ -930,7 +1575,7 @@ main:
   # Read the encrypth message
   move $a0,$v0
   la $a1,bufferEncrptData
-  li $a2,128
+  move $a2,$s3
   jal readFile
   move $s3,$v0
 
@@ -939,6 +1584,7 @@ main:
   la $a0,bufferKeyData
   move $a1,$s2
   jal decryptMsg
+  move $s3,$v0
 
   # Open file to write the decrypted message
   la $a0,promptWriteDecrptMsg
@@ -950,7 +1596,7 @@ main:
   # Write the decrypted message
   move $a0,$s4
   la $a1,bufferEncrptData
-  li $a2,128
+  move $a2,$s3
   jal writeFile
 
   # Close the decrypted message
@@ -979,6 +1625,22 @@ printErrMsg:
   jal printStr
 
 endProgram: # Exit to programm
+  lw $s7,0($sp)
+  addi $sp,$sp,4
+  lw $s6,0($sp)
+  addi $sp,$sp,4
+  lw $s5,0($sp)
+  addi $sp,$sp,4
+  lw $s4,0($sp)
+  addi $sp,$sp,4
+  lw $s3,0($sp)
+  addi $sp,$sp,4
+  lw $s2,0($sp)
+  addi $sp,$sp,4
+  lw $s1,0($sp)
+  addi $sp,$sp,4
+  lw $s0,0($sp)
+  addi $sp,$sp,4
   la $a0,msgEndProgram
   jal printStr
   li $v0,10
