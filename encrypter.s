@@ -1,12 +1,12 @@
 ################################################################################
-# Title:                                      Filename: encrypter.s            #
-# Author: Simone Cappabianca                  Date: 25/02/2019                 #
-# Description: ...                                                             #
-# Input: ...                                                                   #
-# Output: ...                                                                  #
-# $s2: Length of the encrypt key                                               #
-# $s3: Length of messages(original message, encrypted message,                 #
-#      decrypted message)                                                      #
+# Title: Encrypted messages                   Filename: encrypter.s            #
+# Author: Simone Cappabianca                  Date: 21/08/2019                 #
+# Description: MIPS Assembly project for the course of Architetture degli      #
+#              Elaboratori - A.A. 2018/2019 -                                  #
+# Input: key of encryption (chiave.txt)                                        #
+#        Message to be encryped (massaggio.txt)                                #
+# Output: Message encrypetd (messaggioCifrato.txt)                             #
+#         Message decrypted (messaggioDecifrato.txt)                           #
 ################################################################################
 
 ################################################################################
@@ -20,17 +20,17 @@ bufferKeyData: .space 5
 
 # Message
 fullNameOfMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggio.txt"
-bufferMsgData: .space 513
+bufferMsgData: .space 1024
 
 # Encrypt Message
 fullNameOfEncrptMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggioCifrato.txt"
-bufferEncrptData: .space 513
-bufferEncrptDataTmp: .space 513
+bufferEncrptData: .space 1024
+bufferEncrptDataTmp: .space 1024
 
 # Decrypt Message
 fullNameOfDecrptMsg: .asciiz "Users/simonecappabianca/Documents/University/ProjectAE_2018-2019/samples/messaggioDecifrato.txt"
-bufferDecrptData: .space 513
-bufferDecrptDataTmp: .space 513
+bufferDecrptData: .space 1024
+bufferDecrptDataTmp: .space 1024
 
 positionCounter: .byte 0
 
@@ -248,7 +248,7 @@ sbrk:
 #                module                #
 ########################################
 module:
-  # Procedure to calcolate a mod 256
+  # Procedure to calcolate a mod b
   # $a0: number
   # $a1: module
   # $v0: result of number mod modulo
@@ -408,7 +408,8 @@ nextChrEncryptB:
   sw $v0,0($sp)
   move $a0,$t2
   li $a1,2
-  jal module
+  jal module                            # Calcolated the module the
+                                        # position in base 2
   move $t3,$v0
   lw $v0,0($sp)
   add $sp,$sp,4
@@ -418,7 +419,7 @@ nextChrEncryptB:
   add $sp,$sp,4
   lw $t0,0($sp)
   add $sp,$sp,4
-  bnez $t3,jumpEncodingB
+  bnez $t3,jumpEncodingB                # Chech if the position is even
   add $sp,$sp,-4
   sw $t0,0($sp)
   add $sp,$sp,-4
@@ -498,7 +499,8 @@ nextChrDecryptB:
   sw $v0,0($sp)
   move $a0,$t2
   li $a1,2
-  jal module
+  jal module                            # Calcolated the module the
+                                        # position in base 2
   move $t3,$v0
   lw $v0,0($sp)
   add $sp,$sp,4
@@ -508,7 +510,7 @@ nextChrDecryptB:
   add $sp,$sp,4
   lw $t0,0($sp)
   add $sp,$sp,4
-  bnez $t3,jumpDecodingB
+  bnez $t3,jumpDecodingB                 # Chech if the position is even
   add $sp,$sp,-4
   sw $t0,0($sp)
   add $sp,$sp,-4
@@ -588,7 +590,8 @@ nextChrEncryptC:
   sw $v0,0($sp)
   move $a0,$t2
   li $a1,2
-  jal module
+  jal module                            # Calcolated the module the
+                                        # position in base 2
   move $t3,$v0
   lw $v0,0($sp)
   add $sp,$sp,4
@@ -598,7 +601,7 @@ nextChrEncryptC:
   add $sp,$sp,4
   lw $t0,0($sp)
   add $sp,$sp,4
-  beqz $t3,jumpEncodingC
+  beqz $t3,jumpEncodingC                # Chech if the position is odd
   add $sp,$sp,-4
   sw $t0,0($sp)
   add $sp,$sp,-4
@@ -679,7 +682,8 @@ nextChrDecryptC:
   sw $v0,0($sp)
   move $a0,$t2
   li $a1,2
-  jal module
+  jal module                            # Calcolated the module the
+                                        # position in base 2
   move $t3,$v0
   lw $v0,0($sp)
   add $sp,$sp,4
@@ -689,7 +693,7 @@ nextChrDecryptC:
   add $sp,$sp,4
   lw $t0,0($sp)
   add $sp,$sp,4
-  beqz $t3,jumpDecodingC
+  beqz $t3,jumpDecodingC                # Chech if the position is odd
   add $sp,$sp,-4
   sw $t0,0($sp)
   add $sp,$sp,-4
@@ -741,8 +745,8 @@ encryptD:
   # $a0: original message
   # $v0: length of the encrypted message
 
-  move $t0,$a0                          # $t0: Message
-  move $t1,$a0                          # $t1: Message
+  move $t0,$a0                          # $t0: Head of message
+  move $t1,$a0                          # $t1: Tail of message
   move $t5,$a0                          # $t5: Message
   addi $sp,$sp,-4
   sw $ra,0($sp)
@@ -777,16 +781,16 @@ encryptD:
   add $sp,$sp,4
   move $a1,$zero
   addi $a2,$t2,-1
-  add $t1,$t1,$a2
+  add $t1,$t1,$a2                       # Moved $t1 at the end of message
 nextChrEncryptD:
   lb $t3,($t0)
   lb $t4,($t1)
   sub $a3,$t1,$t0
-  blez $a3,endBufferEncryptD
+  blez $a3,endBufferEncryptD            # Check the half of the message
   sb $t4,($t0)                          # Store char in new position
   sb $t3,($t1)                          # Store char in new position
-  add $t0,$t0,1
-  sub $t1,$t1,1
+  addi $t0,$t0,1
+  addi $t1,$t1,-1
   j nextChrEncryptD
 
 endBufferEncryptD:
@@ -984,6 +988,14 @@ loopSearchPosition:
   sb $t4,0($t3)                         # Store position hundreds
   add $t3,$t3,1
   addi $v0,$v0,1                        # Increase the length of the message
+  mfhi $t4
+  addi $t4,$t4,-10
+  bgez $t4, tens                        # Check if remainder of div great or
+                                        # equal to zero
+  addi $t4,$zero,48
+  sb $t4,0($t3)                         # Store position 0 in the tens
+  add $t3,$t3,1
+  addi $v0,$v0,1                        # Increase the length of the message
 tens:
   mfhi $t4
   add $t5,$zero,10
@@ -1000,7 +1012,6 @@ units:
   sb $t4,0($t3)                         # Store position units
   addi $t3,$t3,1
   addi $v0,$v0,1                        # Increase the length of the message
-  # TODO: Store positione and increase the length
   addi $sp,$sp,-4
   sw $t7,0($sp)
   addi $sp,$sp,-4
@@ -1324,6 +1335,7 @@ decryptMsg:
   # in base on the key of the encryption.
   # $a0: Encrypth key
   # $a1: length of Key
+  # $v0: length of the decrypted message
 
   # Prepare the jump table of algorithms
   la $t1,jumpDecrptTable
@@ -1342,6 +1354,7 @@ nextDecrpt:
   add $t0,$t0,$t1
   lw $t0,0($t0)
   jr $t0
+
 decrptA:
   addi $sp,$sp,-4
   sw $t0,0($sp)

@@ -1,0 +1,224 @@
+\documentclass[11pt, oneside]{article}   	% use "amsart" instead of "article" for AMSLaTeX format
+%\usepackage{geometry}                		% See geometry.pdf to learn the layout options. There are lots.
+\usepackage{listings}
+%\geometry{letterpaper}                   		% ... or a4paper or a5paper or ... 
+%\geometry{landscape}                		% Activate for for rotated page geometry
+\usepackage[parfill]{parskip}    		% Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}				% Use pdf, png, jpg, or eps§ with pdflatex; use eps in DVI mode
+								% TeX will automatically convert eps --> pdf in pdflatex
+\usepackage{float}
+\usepackage{subcaption}		
+\usepackage{amssymb}
+\usepackage{placeins}
+\usepackage{listings}
+\usepackage{mips}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+
+
+\newcommand{\verbatiminput}[1]{%
+  \VerbatimInput[
+    frame=lines,
+    framesep=2em,
+    label=\fbox{\color{Black}{#1}},
+    labelposition=topline,
+  ]{#1}%
+}
+
+
+\title{Progetto ARCHITETTURE DEGLI ELABORATORI 2018-2019}
+\author{Simone Cappabianca - Mat: 5423306 \\  simone.cappabianca@stud.unifi.it}
+\date{Agosto 18, 2019}							% Activate to display a given date or no date
+
+\setlength{\parindent}{4em}
+\setlength{\parskip}{1em}
+
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\section{Descrizione}
+Lo scopo del progetto e' quello di cifrare e decifrare un dato messaggio in base ad una data chiave di cifratura.
+
+\subsection{Programma}
+
+Per la realizzazione del progetto sono state fatte le seguenti scelte:
+\begin{itemize}
+	\item i percorsi dei file \textit{chiave.txt}, \textit{messaggio.txt}, \textit{messaggioCifrato.txt} e \textit{messaggioDecifrato.txt} sono tutti path assoluti, questo perch\'e su Mac OS ho riscontrato problemi con i path relativi;
+	\item i buffer utilizzati all'interno del programma per contenere i messaggi sono definiti come \textit{.space 1024} in questo modo non dovrebbero insorgere problemi di spazio con l'algoritmo \textbf{E}, non riuscento a stimare con precisione l'occupazione massima di memoria che pu\'o richiedere la cifratura con l'agoritmo \textbf{E} ho preferito sovrastimarla;
+	\item prima di eseguire il programma \'e necessario assicurarsi che i file \textit{messaggioCifrato.txt} e \textit{messaggioDecifrato.txt} siamo presenti nei path indicati nel codice del programma e che siamo vuoti, in questo modo si carantisce la corretta eseguzione del processo di crifratura e di decifratura. 
+\end{itemize} 
+
+\subsubsection{main}
+\begin{flushleft}
+\setlength{\parindent}{5ex}
+La procedura \textbf{main} esegue in ordine le seguenti operazioni:
+\begin{enumerate}
+	\item leggere la chiave di cifratura controllando che il file \textit{chiave.txt} esista e nell'eventualit\'a in cui il controllo fallisse interrompere l'esecuzione del programma, per quanto riguarda la corretezza semantica della chiave non viene fatto alcun tipo di controllo quindi si assume che la chiave appartenga all'insime delle disposizioni con ripetizione dei 5 elementi (A,B,C,D,E) raggrupati 4 a 4;
+	\item leggere il messaggio originale su cui applicare gli algoritmi di cifratura e di controllare che il file \textit{messaggio.txt} esista e che il file non sia vuoto nel eventualit\'a in cui uno o entrambi i controlli fallissero interrompere l'esecuzione del programma, per quanto riguarda il contenuto del messaggio non viene fatto alcun tipo di controllo;
+	\item cifrare il messaggio originale contenuto all'interno del file \textit{messaggio.txt} utilizzando la chiave di cifratura contenuta in \textit{chiave.txt}, tale chiave oltre a stabilire quali algoritmi di cifratura utilizzare definisce anche la loro seguenza di applicazione, infine salva il risultato della cifratura all'interno del file \textit{messaggioCifrato.txt};
+	\item decifrare il messaggio cifrato contenuto all'interno del file \textit{messaggioCifrato.txt} utlizzando sempre la chiave di cifratura contenuta all'interno del file \textit{chiave.txt} per determinare queli algoritmi di decifratura utilizzare e la loro seguenza di applicazione che \'e l'inversa rispetto a quella di cifratura, infine salvare il messaggio decifrato all'interno del file \textit{messaggioDecifrato.txt}.     
+ \end{enumerate}
+ \end{flushleft} 
+
+\subsubsection{encryptMsg}
+La procedura \textit{encryptMsg} prende come parametri in ingresso la chiave di cifratura(\textit{\$a0}) e la sua lunghezza(\textit{\$a1}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}). Per quanto riguarda gli algoritmi di cifratura \textbf{A},\textbf{B},\textbf{C},\textbf{D} la procedura ritorner\'a come lunghezza la stessa lunghezza del messaggio originale mentre nel caso dell'algoritmo \textbf{E} ritorner\'a sicuramente un valore superiore alla lunghezza del messaggio originale. \par
+
+Per applicare nella giusta sequenza gli algoritmi di cifratora \'e stato realizzato un ciclo che scandisce la chiave di cifratura dal primo all'ultimo carattere e con l'ausilio di una \textit{JumpAddressTable} \'e stato realizzato uno switch che in base al carattere selezionato della chiave richiama il giusto algoritmo di cifratura. La \textit{JumpAddressTable} \'e stata definita nel seguente modo:
+
+\lstinputlisting[language={[mips]Assembler}, firstline=65, lastline=65, basicstyle=\tiny]{../encrypter.s}
+
+La \textit{JumpAddressTable} definita sopra non \'e altro che un \textit{Array} di \textit{Word}  e questo significa che nella posizione di indice 0 c'\'e la parola \textit{encrptA} e cosi via fino all'indice 4 che contine la parola \textit{encrptE}.\par
+
+Per poter utilizare la \textit{jumpEncrtpTable} ad ogni carattere letto dalla chiave di cifratura \'e necessario sottrarre 65 dal corrispettivo valore ascii come si pu\'o vedere nel codice sottostante.
+ 
+\lstinputlisting[language={[mips]Assembler}, firstline=1192, lastline=1198, basicstyle=\tiny]{../encrypter.s}
+
+In questo modo con il carattere \textbf{A}, che corrisponde al valore \textit{Ascii} 65(Dec), viene recuperata l'etichetta \textit{encrptA} che fa saltare direttamente codice sottostante che applica l'algoritmo di cifratura corrispondente alla lettera \textbf{A}.
+
+\lstinputlisting[language={[mips]Assembler}, firstline=1200, lastline=1223, basicstyle=\tiny]{../encrypter.s}\par
+
+Cos\'i facendo in base alla composizione della chiave di cifatura si stabilisce quale algoritmi applicare e il loro ordine di applicazione in modo tale che al termine dell'esecuzione della procedura il buffer \textit{bufferMsgData} conterr\'a il messeggio cifrato. 
+
+\subsubsection{decryptMsg}
+La procedura \textit{decryptMsg} prende come parametri in ingresso la chiave di cifratura(\textit{\$a0}) e la sua lunghezza(\textit{\$a1}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}). In realt\'a per tutti gli algoritmi di decifratura \textbf{A},\textbf{B},\textbf{C},\textbf{D} e \textbf{E} la procedura ritorner\'a sempre la stessa lunghezza che coincider\'a con lunghezza del messaggio originale.\par
+
+Per applicare nella giusta sequenza gli algoritmi di decifratora \'e stato realizzato un ciclo che scandisce la chiave di cifratura dall'ultimo al primo carattere in modo tale che gli algoritmi di decifratura siamo richiamti nell'ordine inverso rispetto a quelli di cifratura. Con l'ausilio di una \textit{JumpAddressTable} \'e stato realizzato uno switch che in base al carattere selezionato della chiave richiama il giusto algoritmo di decifratura. 
+La \textit{JumpAddressTable} \'e stata definita nel seguente modo:\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=66, lastline=66, basicstyle=\tiny]{../encrypter.s}
+
+La \textit{JumpAddressTable} definita sopra non \'e altro che un \textit{Array} di \textit{Word}  e questo significa che nella posizione di indice 0 c'\'e la parola \textit{decrptA} e cosi via fino all'indice 4 che contine la parola \textit{decrptE}.\par
+
+Per poter utilizare la \textit{jumpDecrtpTable} ad ogni carattere letto dalla chiave di cifratura \'e necessario sottrarre 65 da corrispettivo valore ascii come si pu\'o vedere nel codice sottostante.\par
+ 
+\lstinputlisting[language={[mips]Assembler}, firstline=1350, lastline=1356, basicstyle=\tiny]{../encrypter.s}
+
+In questo modo con il carattere \textbf{A}, che corrisponde al valore \textit{Ascii} 65(Dec), viene recuperata l'etichetta \textit{decrptA} che fa saltare direttamente codice sottostante che applica l'algoritmo di decifratura corrispondente alla lettera \textbf{A}.
+
+\lstinputlisting[language={[mips]Assembler}, firstline=1358, lastline=1381, basicstyle=\tiny]{../encrypter.s}\par
+
+Cos\'i facendo in base alla composizione della chiave di cifatura si stabilisce quale algoritmi applicare e il loro ordine di applicazione in modo tale che al termine dell'esecuzione della procedura il buffer \textit{bufferEncrptData} conterr\'a il messeggio decifrato. 
+
+\subsubsection{encryptA}
+La procedura \textit{encryptA} realizza l'algoritmo di cifratura \textbf{A}. Ha come unico parametro il messaggio da cifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}). Questo algoritmo non \'e altro che un \textbf{Cifrario di Cesare} e non altare la lunghezza del messaggio ma solo i caratteri contenuti al suo interno, ad esempio sostituira la lettera \textit{H} con la lettera \textit{L} ma non modificher\'a in alcun modo il numero di caratteri di cui \'e composto il messaggio.\par  
+
+Per realizzare questo algoritmo \'e stato utilizzato un ciclo per scandire ogni singolo carettere di cui \'e composto il messaggio da cifrare. Ogni singolo carattere del messaggio viene sostituito con il \textbf{modulo}  in base 256 del suo corrispettivo valore \textit{Ascii} incrememtato di 4 come si pu\'o vedere dal codice sottostante.\par 
+
+\lstinputlisting[language={[mips]Assembler}, firstline=291, lastline=294, basicstyle=\tiny]{../encrypter.s}
+
+L'utilizzo della funzione modulo \' e necessaria per garantire che il nuovo carattere sia uno dei 256 caratteri definiti nella codifica \textbf{Ascii Estesa}. Per la realizzazione di questo algoritmo di cifratura \'e stato necessario definire una prodocura \textit{module}.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=247, lastline=258, basicstyle=\tiny]{../encrypter.s}
+
+Questa procedura di servizio prende come parametri in numero di cui fare il modulo(\textit{\$a0}) la base del modulo(\textit{\$a1}) e restituisce il modulo(\textit{\$v0}). Per calcolare il modulo prima si effetua la divisione del numero per la base utilizzando l'istruzione \textit{div} e poi utiliziamo l'istruzione \textit{mfhi} per recuperare il resto della divisione che coindice con il modulo. 
+
+\subsubsection{decryptA}
+
+La procedura \textit{decryptA} realizza l'algoritmo di decifratura di un messaggio cifrato con l'algoritmo di cifratura \textbf{A}. Ha un unico parametro  il messaggio da decifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio decifrato(\textit{\$v0}).Questa procedura \'e identica alla produra \textit{encryptA} ad esclusione del fatto che invece di sommare 4 al corrispondente valore \textit{Ascii} del carattere selezionato viene sottratto 4 come si pu\'o vedere nel codice sottostante.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=353, lastline=357, basicstyle=\tiny]{../encrypter.s}  
+
+\subsubsection{encryptB}
+Questa procedura \'e uguale alla procedura \textit{encryptA} ha come unico parametro d'ingresso il messaggio da cifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}) e implementa come l'agoritmi di cifratura sempre un \textbf{Cifrario di Cesare} l'unica differenza e viene applicato solamente a caratteri la cui posizione all'interno del messaggio \'e pari.\par 
+
+Per stabilire se la posizione del carattere e pari abbiamo utilizzato la procedura \textit{module} definita e gi\'a utilizzata per procedura \textit{encryptA}. Nel caso specifico come parametri alla procedura gli viene passata la posizione del carattere e 2, se la procedura resituisce 0 allora la posizione e pari e quindi il carattere viene cifrato altrimenti viene lasciato inalterato. Il codice sotto stante mostra l'utilizzo delle funzione \textit{modulo} per daterminare se la posizione \' e pari.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=409, lastline=441, basicstyle=\tiny]{../encrypter.s}
+  
+\subsubsection{decryptB}
+
+La procedura \textit{decryptB} realizza l'algoritmo di decifratura di un messaggio cifrato con l'algoritmo di cifratura \textbf{B}. Ha un unico parametro  il messaggio da decifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio decifrato(\textit{\$v0}).Questa procedura \'e identica alla produra \textit{encryptB} ad esclusione del fatto che invece di sommare 4 al corrispondente valore \textit{Ascii} del carattere selezionato viene sottratto 4 come si pu\'o vedere nel codice sottostante.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=520, lastline=523, basicstyle=\tiny]{../encrypter.s}
+
+\subsubsection{encryptC}
+Questa procedura \'e identica alla procedura \textit{encryptB} solamente che in questa i caratteri che vengono cifrati sono quelli la cui posizione all'interno del messaggio \'e dispari.\par
+
+\subsubsection{decryptC}
+
+La procedura \textit{decryptC} realizza l'algoritmo di decifratura di un messaggio cifrato con l'algoritmo di cifratura \textbf{C}. Ha un unico parametro  il messaggio da decifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio decifrato(\textit{\$v0}).Questa procedura \'e identica alla produra \textit{encryptC} ad esclusione del fatto che invece di sommare 4 al corrispondente valore \textit{Ascii} del carattere selezionato viene sottratto 4 come si pu\'o vedere nel codice sottostante.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=703, lastline=706, basicstyle=\tiny]{../encrypter.s}
+
+\subsubsection{encryptD}
+
+La procedura \textit{encryptD} realizza l'algoritmo di cifratura \textbf{D}. Ha come unico parametro il messaggio da cifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}). Questo algoritno deve invertire l'ordine dei caratteri del messaggio. Ad esempio se il messagio contiene  caratteri \textit{Hello!!!} l'argoritmo deve restituire \textit{!!!olleH}.\par
+
+Per realizzare questo algoritmo e stato utilizato un ciclo per scorrere il messaggio contemporaneamente dalla sua testa verso la su coda(\textit{\$t0}) e dalla sua coda alla sua testa(\textit{\$t1}) lo scambio dei caratteri viene effettuato fino a quando non si raggiunge la meta del messaggio come si pu\'o vedere dal codice sottostante.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=785, lastline=794, basicstyle=\tiny]{../encrypter.s}
+
+Per capire quando il ciclo si deve interrompere viene fatta la sottazione dei \textit{\$t1} meno \textit{\$t0} che contengono rispettivamente la popsizione dell'ultimo carattere letto a partire dal fondo del messaggio e la posizione dell'ultimo carattere letto a partire dall'inzio del messaggio. Se il risultato della loro sottrazione \'e maggiore di zero significa che i due indici non si sono incontrati e quindi si possono scambiare i caratteri. Se la sottrazione da come risultato zero questo significa la lunghezza del messaggio \'e dispari e che antrambi \textit{\$t0} e \textit{\$t1} sono sul carattere centrale, se la sottrazione \'e minore di zero vuol dire che la lunghezza del messaggio \' e pari e che i due indici si sono incrociati, in entrambi i casi il ciclo deve essere interrotto e di conseguenza anche la cifratura del messaggio.\par 
+
+\subsubsection{decryptD}
+
+La procedura \textit{decryptD} realizza l'algoritmo di decifratura di un messaggio cifrato con l'algoritmo di cifratura \textbf{D}. Ha come unico parametro  il messaggio da decifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio decifrato(\textit{\$v0}). Da come si pu\'o vedere dal codice sottostante questa procedura non fa altro che chiamare la procedura \textit{encryptD} passandogli come parametro il messaggio precedentemente cifrato con l'algoritmo D.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=829, lastline=834, basicstyle=\tiny]{../encrypter.s}
+
+Questo \'e possibile per la particolare natura di questo algoritmo, se viene applicato su un testo un numero di volte dispari allora il testo avr\'a l'ordine dei caratteri invertivo, se invece viene applicato un numero di volte pari il testo rimanne invariato.\par
+
+\subsubsection{encryptE}
+
+La procedura \textit{encryptE} realizza l'algoritmo di cifratura \textbf{E}. Ha come unico parametro il messaggio da cifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio cifrato(\textit{\$v0}). Questo algoritmo deve cifrare il messaggio mostrando per ogni singolo carattere tutte le posizioni delle sue occorrenze separate da \textbf{-}, tra un carattere e l'altro deve essere inserito uno spazio. Ad esempio se il messaggio contine i seguenti caratteri \textit{Hello!!!} l'algoritmo deve restituire  \textit{H-0 e-1 l-2-3 0-4 !-5-6-7}.\par
+
+Per realizzare questo algoritmo come prima cosa \'e necessario determinare di quali caratteri \'e composto il messaggio. Per tenera traccia di tutti i caratteri di cui \'e composto il messaggio viene utilizzata una lista puntata in cui vengono inseriti i caratteri la prima volta che vengono incontrati. \'E stata scelta una lista puntata per non \'e possibile sapere a priori il numero dei caratteri presenti all' interno del messaggio quindi \'e stata scelta una struttura dati dinamica. Per costruire la lista \'e stata definita la procedura di servizio \textit{sbrk}  che come potete vedera da codice sottostante non \'e altro che un wrapper alla chiamata \textit{syscall} con il registro \textit{\$v0} uguale a 9 per allocare \textit{heap memory}.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=235, lastline=245, basicstyle=\tiny]{../encrypter.s}
+
+Questa procedura ha come paramentro il numero di bytes da allocare(\textit{\$a0}) e restituisce l'indirizzo della memoria allocata(\textit{\$v0}). Nel progetto viene sempre chiamata passandoglio come parametro 5 in questo perch\'e  primi 4 bytes servono per linkare la cella successiva ed il quinto byte serve per contenere il carattere.\par
+
+Per la costruzione della lista dei caratteri viene utilizzato un ciclo che scandisce ogni carattere del messaggio e per ognuno di questi controlla se \' e gi\'a presente all' interno della lista. Nel caso in cui il carattere risulta gi\'a presente nella lista passa al successivo carattere del messaggio, nel caso contrario, cio\'e \'e la prima occorrenze del carattere, aggiunge un nuovo elemento(procedura \textit{sbrk}) in coda alla lista per contenere il nuovo carattere.\par 
+
+Una volta costruita la lista con tutti i caratteri presenti all'interno del messaggio viene eseguito un ciclo su di essa e per ogni singolo carattere della lista viene eseguito un ciclo sul messaggio per cerca tutte le posizioni del caratte all'interno del messagio in questo modo si costruisce la stringa di cifratura del carattere. Quando il ciclo sul messaggio termina viene prese il carettere successivo della lista e viene effettuata nuovamente la ricerca delle sue  posizioni all'interno del messaggio. L'algoritmo termina quando terminano gli elementi della lista.\par
+
+\subsubsection{decryptE}
+
+La procedura \textit{decryptE} realizza l'algoritmo di cifratura di un messaggio cifrato con l'algoritmo di cifratura \textbf{E}. Ha come unico parametro il messaggio da decifrare(\textit{\$a0}) e restituisce la lunghezza del messaggio decifrato(\textit{\$v0}). Per effettuare la decifratura del messaggio cifrato con l'algoritmo \textbf{E} \'e stato necessario utilizzare un \textit{buffer} di servizio in cui copiare il messaggio da decifrare e al tempo stesso cancellare il \textit{buffer} che lo conteneva come si pu\'o vedre ne codice sottostante.\par
+
+\lstinputlisting[language={[mips]Assembler}, firstline=1093, lastline=1102, basicstyle=\tiny]{../encrypter.s}
+
+Una volta effettuata la copia del messaggio cifrato per realizzare la decifratura \'e stato sufficente un ciclo sulla sulla copia e una volta riconosciuti i caratteri e le relative posizioni andarli a posizionare nel all'interno del \textit{buffer} originale.\par
+
+\subsubsection{Procedure di servizio}
+
+Per la realizzazione del progetto sono state create tutta una serie di prodecure di servizio come ad esempio ma procedura \textit{module} che \'e stata utilizzata per gli algoritmi \textbf{A}, \textbf{B} e \textbf{C}. Poi sono state create tutta una serie di prodecure che fanno il \textit{wrapping} di alcune chiamate \textit{syscall} come ad esempio \textit{printStr}, \textit{printInt}, \textit{printChr} e molte altre tra cui anche la \textit{sbrk} utilizzata per la realizzazione dell'algoritmo \textbf{E}.\par
+
+La realizzazione di tutte queste procedure di servizio ha contribuito a migliore suprattutto due aspetti molto importanti del codice, che sono: 
+\begin{itemize}
+	\item \textbf{Modularit\'a};
+	\item \textbf{Leggibilit\'a} .
+\end{itemize}\par
+
+Un codice che soddisfa questi due requisiti \'e senza dubbio un codice pi\'u semplice da mantenere.
+\newpage 
+
+\section{Test}
+
+Il test ti corretta funzionamento del programma ha esito positivo quando la sua l'escuzione produce un messaggio decifrato contenuto in \textit{messaggioDecifrato.txt} che coincide con il messaggio originale contenuto in \textit{messaggio.txt}.\par
+
+\subsection{Esempio}
+
+L'esempio sotto riportata \'e decisamente semplice per ovviare al problema che il messaggio cifrato (\textit{messaggioCifrato.txt}) prodotto utilizando gli algoritmi \textbf{A}, \textbf{B} e \textbf{C} proprio per la caratterista della cifratura pu\'o contenere dei caratteri/simboli che non possono essere rappresentati. 
+
+\verbatiminput{../samples/chiave.txt}
+
+\verbatiminput{../samples/messaggio.txt}
+
+\verbatiminput{../samples/messaggioCifrato.txt}
+
+\verbatiminput{../samples/messaggioDecifrato.txt}
+\newpage
+
+\section{Codice}
+
+\lstinputlisting[language={[mips]Assembler}, basicstyle=\tiny]{../encrypter.s}
+
+\end{document}
